@@ -1,0 +1,83 @@
+const Global = require("./Global.js");
+const Timeout = require("./Timeout.js");
+const Arrow = require("./Arrow.js")
+
+module.exports = class User {
+    constructor(uid, ip, socket) {
+        this.ip = ip !== void 0 ? ip : "";
+        this.socket = socket;
+		this.player = {
+			name: "test",
+			id: uid,
+			size: 5,
+			color: "green"
+		};
+		this.position = {
+			x:320,
+			y:320
+		};
+		this.stats = {
+			hp:10,
+			attack:1,
+			speed:1,
+			range:30
+		};
+		this.velocity = {
+			vx: null,
+			vy: null
+		};
+		this.controls = {
+			right:false,
+			left:false,
+			up:false,
+			down:false
+		};
+		this.arrow = {
+			arrowtimeout: null,
+			arrowlist: [],
+			id: 0
+		}
+		this.Global = new Global();
+        if (!this.socket) {
+            throw new Error("Fatal error, user", this.id, "got no socket!");
+        }
+    }
+    Send(type, msg) {
+        this.socket.send(type + ":" + msg);
+    }
+    SetUsername(data) {
+        this.player.name = data;
+    }
+    ApplyMovement() {
+		//fix player movement later
+		
+		this.velocity.vx = (this.controls.right - this.controls.left) * this.stats.speed;
+		this.velocity.vy = (this.controls.down - this.controls.up) * this.stats.speed;
+		
+		/*this.velocity.vx = (this.controls.right - this.controls.left) * this.stats.speed;
+		this.velocity.vy = (this.controls.up - this.controls.down) * this.stats.speed;
+		
+		const radian = this.Global.GetRadian(0, 0, this.velocity.vx, this.velocity.vy);
+		
+		this.velocity.vx = this.Global.GetDirectionX(radian, this.velocity.vx);
+		this.velocity.vy = this.Global.GetDirectionY(radian, this.velocity.vy);
+		*/
+		this.position.x += this.velocity.vx;
+		this.position.y += this.velocity.vy;
+    }
+	FireArrow(data){
+		if(this.arrow.arrowtimeout === null || !this.arrow.arrowtimeout.isRunning()){
+			//allow player to shoot an arrow every X seconds
+			const tx = parseFloat(data[0]);
+			const ty = parseFloat(data[1]);
+			this.arrow.arrowlist.push(new Arrow(this, tx, ty, this.arrow.id++));
+			this.arrow.arrowtimeout = new Timeout(() =>{
+				this.arrow.arrowtimeout.Stop();
+			}, 1000);
+		}
+		
+	}
+	HandleControls(controls){
+		this.controls = controls;
+	}
+};

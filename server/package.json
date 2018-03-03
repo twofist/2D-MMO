@@ -1,0 +1,35 @@
+{
+  "name": "2D MMO",
+  "version": "1.0.0",
+  "description": "no description",
+  "main": "index.js",
+  "engines": {
+    "node": "9.5.0",
+    "npm": "5.6.0"
+  },
+  "dependencies": {
+    "ws": "^4.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js --port 8080"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/twofist/2D-MMO/server.git"
+  },
+  "keywords": [
+    "heroku",
+    "2D",
+    "Online",
+    "Game"
+	"MMO"
+  ],
+  "author": "twofist",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/twofist/2D-MMO/issues"
+  },
+  "homepage": "https://github.com/twofist/2D-MMO#readme"
+}
