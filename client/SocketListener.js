@@ -3,16 +3,20 @@ class SocketListener {
         this.socket = new WebSocket('ws://127.0.0.1:8080');
         //const socket = new WebSocket('wss://link.com');
 		this.type = {
-			MSG_USERNAME: 		0,
-			MSG_CONNECTED: 		1,
-			MSG_DISCONNECTED: 	4,
-			MSG_ONLINE_USERS: 	7,
-			MSG_ONLINE_ENEMIES: 8,
-			MSG_ONLINE_ARROWS: 	9,
-			MSG_PLAYER_CLICK: 	10,
-			MSG_UPDATE_PLAYERS: 11,
-			MSG_UPDATE_ENEMIES: 12,
-			MSG_UPDATE_ARROWS: 	13
+			MSG_USERNAME: 			0,
+			MSG_CONNECTED: 			1,
+			MSG_DISCONNECTED: 		2,
+			MSG_ONLINE_USERS: 		3,
+			MSG_ONLINE_ENEMIES: 	4,
+			MSG_ONLINE_ARROWS: 		5,
+			MSG_ONLINE_SLIMEBALLS:	6,
+			MSG_ONLINE_GROUNDSMASH:	7,
+			MSG_PLAYER_CLICK: 		10,
+			MSG_UPDATE_PLAYERS: 	11,
+			MSG_UPDATE_ENEMIES:		12,
+			MSG_UPDATE_ARROWS: 		13,
+			MSG_UPDATE_SLIMEBALLS: 	14,
+			MSG_UPDATE_GROUNDSMASH: 15
 		};
         
         this.gameworld = gameworld;
@@ -33,7 +37,6 @@ class SocketListener {
         });
 
         this.socket.addEventListener('message', (event) => {
-			//console.log("data received",event.data);
 			const data = this.GetData(event);
 			const type = this.GetType(data);
 			const msg = this.GetMsg(data);
@@ -47,14 +50,11 @@ class SocketListener {
 				case this.type.MSG_UPDATE_ARROWS:
 					this.UpdateArrows(msg);
 					break;
-                case this.type.MSG_ONLINE_USERS:
-                    this.UpdatePlayers(msg);
-                    break;
-				case this.type.MSG_ONLINE_ENEMIES:
-					this.UpdateEnemies(msg);
+				case this.type.MSG_UPDATE_SLIMEBALLS:
+					this.UpdateSlimeBalls(msg);
 					break;
-				case this.type.MSG_ONLINE_ARROWS:
-					this.UpdateArrows(msg);
+				case this.type.MSG_UPDATE_GROUNDSMASH:
+					this.UpdateGroundSmash(msg);
 					break;
 				case this.type.MSG_CONNECTED:
                     this.PlayerConnected(msg);
@@ -73,7 +73,7 @@ class SocketListener {
 		const name = msg[0];
 		if (Username === name) return;
 		console.log("User connected:", name);
-		this.gameworld.CreatePlayers(msg);
+		this.gameworld.UpdatePlayers(msg);
 	}
 	PlayerDisconnected(msg){
 		//removes disconnected user
@@ -99,6 +99,12 @@ class SocketListener {
 	}
 	UpdateArrows(msg){
 		this.gameworld.UpdateArrows(msg);
+	}
+	UpdateSlimeBalls(msg){
+		this.gameworld.UpdateSlimeBalls(msg);
+	}
+	UpdateGroundSmash(msg){
+		this.gameworld.UpdateGroundSmash(msg);
 	}
 	UpdateEnemies(msg){
 		this.gameworld.UpdateEnemies(msg);

@@ -27,12 +27,13 @@ class Camera {
     }
 	Follow(player){
 		this.follow = player;
+		player.camera = this;
 	}
 	IsInView(position, size){
 		const left = position.x;
 		const top = position.y;
-		const right = position.x + size;
-		const bottom = position.y + size;
+		const right = position.x + size.width;
+		const bottom = position.y + size.height;
 
 		if(left < this.position.right && right > this.position.left && bottom > this.position.top && top < this.position.bottom)
 			return true;
@@ -54,6 +55,7 @@ class Camera {
 		this.position.bottom = this.position.y + this.halfsize.height;
 	}
 	StickToPlayer(){
+		//this.ctx.save();
 		this.ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
 		this.ctx.clearRect(0, 0, this.size.width, this.size.height);
 

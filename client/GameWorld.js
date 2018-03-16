@@ -9,22 +9,49 @@ class GameWorld {
 		this.canvas.height = window.innerHeight;
 		this.ctx = document.getElementById("canvas").getContext("2d");
 		this.lists = {
-			players: [],
-			enemies: [],
-			arrows: []
+			players: 	[],
+			enemies:	[],
+			arrows: 	[],
+			slimeballs: [],
+			groundsmash:[]
 		}
 		this.socketlistener = new SocketListener(this);
 		this.Camera = this.CreateCamera();
 		this.fpscounter = new FPSCounter(0, 0, this.ctx, 5);
+		this.hpbar = new HpBar(0, 0, this.ctx);
+		this.arrowbar = new ArrowBar(0, 0, this.ctx);
+		this.hudmodel = new HUDModel(0, 0, "blue", Username, this.ctx);
 		this.player = null;
-		this.DrawWorld();
+		this.WaitForConnection();
     }
+	WaitForConnection(){
+		let WaitTime = 1000;
+		const interval = setInterval (() => { 
+			if(this.socketlistener.socket.readyState === 1){
+				this.DrawWorld();
+				clearInterval(interval);
+			}
+			else if(this.socketlistener.socket.readyState === 3){
+				this.NoConnection();
+				clearInterval(interval);
+			}
+		},	WaitTime+=WaitTime);
+	}
+	NoConnection(){
+		const element = document.getElementById("canvas");
+		element.outerHTML = "No Connection to the Server could be made";
+	}
     DrawWorld(){
 		this.Camera.StickToPlayer();
 		this.fpscounter.DrawFps();
+		this.hpbar.DrawHpBar();
+		this.arrowbar.DrawArrowBar();
+		this.hudmodel.DrawHUDModel();
 		this.DrawUsers();
 		this.DrawEnemies();
 		this.DrawArrows();
+		this.DrawSlimeBalls();
+		this.DrawGroundSmash();
 		
         requestAnimationFrame(this.DrawWorld.bind(this));
     }
@@ -34,7 +61,12 @@ class GameWorld {
 	SetCamera(id){
 		this.player = this.GetSpecificUser(id);
 		this.Camera.Follow(this.player);
+		this.hpbar.SetCamera(this.Camera);
+		this.arrowbar.SetCamera(this.Camera);
 		this.fpscounter.SetCamera(this.Camera);
+		this.hudmodel.SetCamera(this.Camera);
+		this.hudmodel.SetName(this.player.player.name);
+		this.hudmodel.SetColor(this.player.player.color);
 	}
 	CreateCamera(){
 		const follow = {
@@ -49,7 +81,7 @@ class GameWorld {
 		const length = this.lists.players.length;
 		for(let ii = 0; ii < length; ii++){
 			const player = this.lists.players[ii];
-			if(this.Camera.IsInView(player.position, player.player.size))
+			if(this.Camera.IsInView(player.position, player.size))
 				player.Draw();
 		}
 	}
@@ -57,16 +89,32 @@ class GameWorld {
 		const length = this.lists.arrows.length;
 		for(let ii = 0; ii < length; ii++){
 			const arrow = this.lists.arrows[ii];
-			if(this.Camera.IsInView(arrow.position, arrow.player.size))
+			if(this.Camera.IsInView(arrow.position, arrow.size))
 				arrow.Draw();
+		}
+	}
+	DrawGroundSmash(){
+		const length = this.lists.groundsmash.length;
+		for(let ii = 0; ii < length; ii++){
+			const smash = this.lists.groundsmash[ii];
+			if(this.Camera.IsInView(smash.position, smash.size))
+				smash.Draw();
 		}
 	}
 	DrawEnemies(){
 		const length = this.lists.enemies.length;
 		for(let ii = 0; ii < length; ii++){
 			const enemy = this.lists.enemies[ii];
-			if(this.Camera.IsInView(enemy.position, enemy.player.size))
+			if(this.Camera.IsInView(enemy.position, enemy.size))
 				enemy.Draw();
+		}
+	}
+	DrawSlimeBalls(){
+		const length = this.lists.slimeballs.length;
+		for(let ii = 0; ii < length; ii++){
+			const slimeball = this.lists.slimeballs[ii];
+			if(this.Camera.IsInView(slimeball.position, slimeball.size))
+				slimeball.Draw();
 		}
 	}
 	CreateDummy(){
@@ -74,7 +122,8 @@ class GameWorld {
 			player:{
 				name:	"dummy",
 				id:		666,
-				size:	10,
+				width:	10,
+				height: 10,
 				color:	"red"
 			}, position:{
 				x:		320,
@@ -131,8 +180,27 @@ class GameWorld {
 		}
 		return null;
 	}
+	GetSpecificSlimeBall(id){
+		const length = this.lists.slimeballs.length;
+		for(let ii = 0; ii < length; ii++){
+			const slimeball = this.lists.slimeballs[ii];
+			if(slimeball.player.id === id)
+				return slimeball;
+		}
+		return null;
+	}
+	GetSpecificGroundSmash(id){
+		const length = this.lists.groundsmash.length;
+		for(let ii = 0; ii < length; ii++){
+			const smash = this.lists.groundsmash[ii];
+			if(smash.player.id === id)
+				return smash;
+		}
+		return null;
+	}
 	UpdatePlayers(data){
-		const datasize = 9;
+		const datasize = parseInt(data.shift());
+		const amountofdata = parseInt(data.shift());
 		const amount = this.CreateObjectFromData(data, datasize);
 		const length = amount.length;
 		for(let ii = 0; ii < length; ii++){
@@ -151,7 +219,8 @@ class GameWorld {
 		}
 	}
 	UpdateArrows(data){
-		const datasize = 7;
+		const datasize = parseInt(data.shift());
+		const amountofdata = parseInt(data.shift());
 		const amount = this.CreateObjectFromData(data, datasize);
 		const length = amount.length;
 		for(let ii = 0; ii < length; ii++){
@@ -163,8 +232,37 @@ class GameWorld {
 				this.lists.arrows.push(new Arrow(arrowdata, this.ctx));
 		}
 	}
+	UpdateSlimeBalls(data){
+		const datasize = parseInt(data.shift());
+		const amountofdata = parseInt(data.shift());
+		const amount = this.CreateObjectFromData(data, datasize);
+		const length = amount.length;
+		for(let ii = 0; ii < length; ii++){
+			const slimeballdata = this.HandleNewSlimeBallData(amount[ii]);
+			const slimeball = this.GetSpecificSlimeBall(slimeballdata.player.id);
+			if(slimeball !== null)
+				slimeball.Update(slimeballdata);
+			else
+				this.lists.slimeballs.push(new SlimeBall(slimeballdata, this.ctx));
+		}
+	}
+	UpdateGroundSmash(data){
+		const datasize = parseInt(data.shift());
+		const amountofdata = parseInt(data.shift());
+		const amount = this.CreateObjectFromData(data, datasize);
+		const length = amount.length;
+		for(let ii = 0; ii < length; ii++){
+			const smashdata = this.HandleNewGroundSmashData(amount[ii]);
+			const groundsmash = this.GetSpecificGroundSmash(smashdata.player.id);
+			if(groundsmash !== null)
+				groundsmash.Update(smashdata);
+			else
+				this.lists.groundsmash.push(new GroundSmash(smashdata, this.ctx));
+		}
+	}
 	UpdateEnemies(data){
-		const datasize = 9;
+		const datasize = parseInt(data.shift());
+		const amountofdata = parseInt(data.shift());
 		const amount = this.CreateObjectFromData(data, datasize);
 		const length = amount.length;
 		for(let ii = 0; ii < length; ii++){
@@ -198,8 +296,49 @@ class GameWorld {
 			player:{
 				name:	data[0],
 				id: 	data[1],
-				size:	data[2],
-				color:	data[3]
+				color:	data[2]
+			}, size: {
+				width:	data[3],
+				height:	data[4]
+			}, position: {
+				x: 		data[5],
+				y: 		data[6]
+			}, rotation:data[7],
+			stats:{
+				speed:	data[8]
+			}
+		}
+		return obj;
+	}
+	HandleNewGroundSmashData(data){
+		const obj = {
+			player:{
+				name:	data[0],
+				id: 	data[1],
+				color:	data[2]
+			}, size: {
+				width: 	data[3],
+				height: data[4]
+			}, rotation: {
+				radian: data[5]
+			}, position: {
+				x: 		data[6],
+				y: 		data[7]
+			}, trigger: data[8], 
+			stats:{
+				speed:	data[9]
+			}
+		}
+		return obj;
+	}
+	HandleNewSlimeBallData(data){
+		const obj = {
+			player:{
+				name:	data[0],
+				id: 	data[1],
+				color:	data[2]
+			}, size: {
+				radius: data[3],
 			}, position: {
 				x: 		data[4],
 				y: 		data[5]
@@ -214,15 +353,18 @@ class GameWorld {
 			player:{
 				name:	data[0],
 				id:		data[1],
-				size:	data[2],
-				color:	data[3]
+				color:	data[2]
+			}, size: {
+				width:	data[3],
+				height:	data[4]
 			}, position:{
-				x:		data[4],
-				y:		data[5]
+				x:		data[5],
+				y:		data[6]
 			}, stats:{
-				hp:		data[6],
-				attack:	data[7],
-				speed:	data[8]
+				maxhp:	data[7],
+				hp:		data[8],
+				attack:	data[9],
+				speed:	data[10]
 			}
 		};
 		return obj;
