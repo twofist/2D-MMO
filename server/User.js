@@ -1,41 +1,48 @@
 const Global = require("./Global.js");
-const Timeout = require("./Timeout.js");
-const Arrow = require("./Arrow.js")
+const Timers = require("./Timers/ExportTimers.js");
 
 module.exports = class User {
-    constructor(uid, ip, socket) {
+    constructor(uid, ip, socket, world) {
         this.ip = ip !== void 0 ? ip : "";
         this.socket = socket;
+		this.gameworld = world;
 		this.player = {
 			name: "test",
 			id: uid,
-			size: 5,
-			color: "green"
+			color: "blue"
 		};
+		this.size = {
+			width: 5,
+			height: 5
+		}
 		this.position = {
 			x:320,
 			y:320
 		};
+		this.center = {
+			x:null,
+			y:null
+		}
 		this.stats = {
-			hp:10,
-			attack:1,
-			speed:1,
-			range:30
+			maxhp: 10,
+			hp: 10,
+			minhp: 0,
+			attack: 1,
+			speed: 0.8,
+			range: 30
 		};
 		this.velocity = {
 			vx: null,
 			vy: null
 		};
 		this.controls = {
-			right:false,
-			left:false,
-			up:false,
-			down:false
+			right: false,
+			left: false,
+			up: false,
+			down: false
 		};
 		this.arrow = {
-			arrowtimeout: null,
-			arrowlist: [],
-			id: 0
+			arrowtimeout: null
 		}
 		this.Global = new Global();
         if (!this.socket) {
@@ -43,7 +50,8 @@ module.exports = class User {
         }
     }
     Send(type, msg) {
-        this.socket.send(type + ":" + msg);
+		if(this.socket.readyState === 1 && msg.length > 0)
+			this.socket.send(type + ":" + msg);
     }
     SetUsername(data) {
         this.player.name = data;
@@ -57,25 +65,24 @@ module.exports = class User {
 		/*this.velocity.vx = (this.controls.right - this.controls.left) * this.stats.speed;
 		this.velocity.vy = (this.controls.up - this.controls.down) * this.stats.speed;
 		
-		const radian = this.Global.GetRadian(0, 0, this.velocity.vx, this.velocity.vy);
+		const radian = this.Global.GetDegree(0, 0, this.velocity.vx, this.velocity.vy);
 		
-		this.velocity.vx = this.Global.GetDirectionX(radian, this.velocity.vx);
-		this.velocity.vy = this.Global.GetDirectionY(radian, this.velocity.vy);
-		*/
+		this.velocity.vx = this.Global.GetDirectionY(radian, this.velocity.vx);
+		this.velocity.vy = this.Global.GetDirectionX(radian, this.velocity.vy);*/
+		
 		this.position.x += this.velocity.vx;
 		this.position.y += this.velocity.vy;
     }
 	FireArrow(data){
 		if(this.arrow.arrowtimeout === null || !this.arrow.arrowtimeout.isRunning()){
 			//allow player to shoot an arrow every X seconds
-			const tx = parseFloat(data[0]);
-			const ty = parseFloat(data[1]);
-			this.arrow.arrowlist.push(new Arrow(this, tx, ty, this.arrow.id++));
-			this.arrow.arrowtimeout = new Timeout(() =>{
-				this.arrow.arrowtimeout.Stop();
-			}, 1000);
-		}
+			const radian = parseFloat(data)
 		
+			this.gameworld.CreateArrow(this, radian);
+			this.arrow.arrowtimeout = new Timers.Timeout(() =>{
+				this.arrow.arrowtimeout.Stop();
+			}, 500);
+		}
 	}
 	HandleControls(controls){
 		this.controls = controls;

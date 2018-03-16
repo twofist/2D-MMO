@@ -6,17 +6,17 @@ module.exports = class Websocket{
 		this.wss = new WebSocket.Server({
 			port: this.PORT
 		});
+		this.uniqueid = 0;
 		this.type = {
-			MSG_USERNAME: 		0,
-			MSG_CONNECTED: 		1,
-			MSG_DISCONNECTED: 	4,
-			MSG_ONLINE_USERS: 	7,
-			MSG_ONLINE_ENEMIES: 8,
-			MSG_ONLINE_ARROWS: 	9,
-			MSG_PLAYER_CLICK: 	10,
-			MSG_UPDATE_PLAYERS: 11,
-			MSG_UPDATE_ENEMIES: 12,
-			MSG_UPDATE_ARROWS: 	13
+			MSG_USERNAME: 			0,
+			MSG_CONNECTED: 			1,
+			MSG_DISCONNECTED: 		2,
+			MSG_PLAYER_CLICK: 		10,
+			MSG_UPDATE_PLAYERS: 	11,
+			MSG_UPDATE_ENEMIES:		12,
+			MSG_UPDATE_ARROWS: 		13,
+			MSG_UPDATE_SLIMEBALLS: 	14,
+			MSG_UPDATE_GROUNDSMASH: 15
 		};
 		this.gameworld = world;
 		this.Start();
@@ -30,20 +30,24 @@ module.exports = class Websocket{
 		user.name = data;
 		console.log(user.ip + ": " + user.name + " connected!");
 		this.gameworld.SetPlayersUsername(user);
-		this.gameworld.BroadcastMessage(this.type, this.type.MSG_CONNECTED, user);
+		//this.gameworld.BroadcastMessage(this.type, this.type.MSG_CONNECTED, user);
 		this.gameworld.SendEverything(user, this.type);
 	}
 	UpdateAllUsers(){
 		const playerarray = this.gameworld.GetAllUsers();
 		const arrowarray = this.gameworld.GetAllArrows();
 		const enemyarray = this.gameworld.GetAllEnemies();
-		
-		const length = this.gameworld.userlist.length;
+		const slimeballarray = this.gameworld.GetAllSlimeBalls();
+		const groundsmasharray = this.gameworld.GetAllGroundSmash();
+
+		const length = this.gameworld.lists.user.length;
 		for(let ii = 0; ii < length; ii++){
-			const player = this.gameworld.userlist[ii];
+			const player = this.gameworld.lists.user[ii];
 			player.Send(this.type.MSG_UPDATE_PLAYERS, playerarray);
 			player.Send(this.type.MSG_UPDATE_ENEMIES, enemyarray);
 			player.Send(this.type.MSG_UPDATE_ARROWS, arrowarray);
+			player.Send(this.type.MSG_UPDATE_SLIMEBALLS, slimeballarray);
+			player.Send(this.type.MSG_UPDATE_GROUNDSMASH, groundsmasharray);
 		}
 	}
 	PlayerDisconnects(user){
@@ -51,19 +55,6 @@ module.exports = class Websocket{
 		console.log(user.ip + ": " + user.name, "disconnected!");
 		this.gameworld.BroadcastMessage(this.type, this.type.MSG_DISCONNECTED, user);
 		this.gameworld.DeleteUser(user);
-	}
-	EnemyDies(enemy){
-		this.gameworld.BroadcastMessage(this.type, this.type.MSG_ENEMY_DIED, enemy);
-		this.gameworld.DeleteEnemy(enemy);
-	}
-	EnemyConnects(enemy){
-		this.gameworld.BroadcastMessage(this.type, this.type.MSG_ENEMY_SPAWNED, enemy);
-	}
-	ArrowConnects(arrow){
-		this.gameworld.BroadcastMessage(this.type, this.type.MSG_ARROW_SPAWNED, arrow);
-	}
-	ArrowDies(arrow){
-		this.gameworld.BroadcastMessage(this.type, this.type.MSG_ARROW_DIED, arrow);
 	}
 	PlayerMovement(data, user){
 		//sets the players controls
@@ -115,25 +106,37 @@ module.exports = class Websocket{
 	}
 	ReceiveFromClients(){
 		//when the server receives a message
-		this.wss.on('connection', (ws, req) => {
-			console.log("someone reached the server");
-			const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-			
-			//if(this.CheckIfConnected(ip));
-				//return
-			
-			this.gameworld.CreatePlayer(ip, ws);
-			const user = this.gameworld.GetUserData(ip);
-			
-			ws.on('close', () => {
-				this.PlayerDisconnects(user);
-			});
+		this.wss.on('connection', (ws, req) =>{
+			ws.id = this.uniqueid++;
+			this.HandleConnections(ws, req)
+		});
+		
+		this.wss.on('error', (e) =>{
+			console.error(e);
+		});
+	}
+	HandleConnections(ws, req){
+		console.log("someone reached the server");
+		const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+		
+		//if(this.CheckIfConnected(ip));
+			//return
+		
+		this.gameworld.CreatePlayer(ip, ws);
+		const user = this.gameworld.GetUserData(ws.id);
+		
+		ws.on('error', (e) =>{
+			console.error(e);
+		});
+		
+		ws.on('close', () => {
+			this.PlayerDisconnects(user);
+		});
 
-			ws.on('message', (data) => {
-				const type = this.GetType(data);
-				data = this.GetData(data, type);
-				this.CheckMessageType(data, type, user)
-			});
+		ws.on('message', (data) => {
+			const type = this.GetType(data);
+			data = this.GetData(data, type);
+			this.CheckMessageType(data, type, user)
 		});
 	}
 };
